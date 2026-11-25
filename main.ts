@@ -36,9 +36,10 @@ function run(p, inp) {
   const D = new Int32Array(256); // data stack
   const C = new Int32Array(64); // call stack
   const M = new Int32Array(256); // memory
-  const out = []; // output bytes
+  const out = new Uint8Array(65536); // output bytes, preallocated to the cap
+  let olen = 0;
   let sp = 0, cp = 0, ip = 0, pc = 0, steps = 0;
-  const done = (exit) => [Buffer.from(out), exit];
+  const done = (exit) => [Buffer.from(out.subarray(0, olen)), exit];
   for (;;) {
     if (steps === 1000000) return done(10); // step limit
     if (pc < 0 || pc >= n) return done(9); // pc outside program
@@ -128,14 +129,14 @@ function run(p, inp) {
       }
       case 0x50: { // PRINT
         const s = String(D[sp - 1]);
-        if (out.length + s.length > 65536) return done(11);
+        if (olen + s.length > 65536) return done(11);
         sp--;
-        for (let i = 0; i < s.length; i++) out.push(s.charCodeAt(i));
+        for (let i = 0; i < s.length; i++) out[olen++] = s.charCodeAt(i);
         break;
       }
       case 0x51: // PUTC
-        if (out.length + 1 > 65536) return done(11);
-        out.push(D[--sp] & 255);
+        if (olen + 1 > 65536) return done(11);
+        out[olen++] = D[--sp] & 255;
         break;
       case 0x52: D[sp++] = ip < inp.length ? inp[ip++] : -1; break; // IN
       case 0x53: return done(D[--sp] & 255); // EXIT
